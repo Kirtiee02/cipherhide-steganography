@@ -1,0 +1,2699 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="CipherHide - Securely hide secret messages inside images.">
+<title>CipherHide | Image Steganography</title>
+
+<style>
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+:root {
+    --bg: #070b14;
+    --bg2: #0d1322;
+    --card: rgba(17, 25, 43, 0.82);
+    --card-hover: rgba(23, 33, 56, 0.95);
+    --border: rgba(255,255,255,0.09);
+    --text: #f5f7ff;
+    --muted: #8f9ab1;
+    --purple: #7c5cff;
+    --purple-light: #a594ff;
+    --cyan: #00d9ff;
+    --green: #25e69a;
+    --red: #ff5277;
+    --yellow: #ffc857;
+    --shadow: 0 25px 80px rgba(0,0,0,0.35);
+}
+
+html {
+    scroll-behavior: smooth;
+}
+
+body {
+    min-height: 100vh;
+    font-family: Inter, Arial, Helvetica, sans-serif;
+    color: var(--text);
+    background:
+        radial-gradient(circle at 10% 10%, rgba(124,92,255,.18), transparent 30%),
+        radial-gradient(circle at 90% 15%, rgba(0,217,255,.11), transparent 28%),
+        radial-gradient(circle at 50% 100%, rgba(124,92,255,.10), transparent 35%),
+        var(--bg);
+    overflow-x: hidden;
+}
+
+body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    opacity: .25;
+    background-image:
+        linear-gradient(rgba(255,255,255,.02) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.02) 1px, transparent 1px);
+    background-size: 42px 42px;
+    mask-image: linear-gradient(to bottom, black, transparent);
+}
+
+.container {
+    width: min(1160px, calc(100% - 30px));
+    margin: auto;
+}
+
+/* NAVBAR */
+
+header {
+    padding: 22px 0;
+    position: relative;
+    z-index: 10;
+}
+
+.navbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 20px;
+    font-weight: 900;
+    letter-spacing: -.6px;
+}
+
+.logo-icon {
+    width: 43px;
+    height: 43px;
+    display: grid;
+    place-items: center;
+    border-radius: 13px;
+    background: linear-gradient(135deg, var(--purple), var(--cyan));
+    box-shadow: 0 10px 30px rgba(124,92,255,.3);
+    font-size: 21px;
+}
+
+.logo span {
+    color: #fff;
+}
+
+.logo strong {
+    color: var(--purple-light);
+}
+
+.security-badge {
+    padding: 8px 13px;
+    border-radius: 999px;
+    background: rgba(255,255,255,.04);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 12px;
+}
+
+/* HERO */
+
+.hero {
+    text-align: center;
+    padding: 65px 0 45px;
+}
+
+.eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 13px;
+    border-radius: 999px;
+    background: rgba(124,92,255,.08);
+    border: 1px solid rgba(124,92,255,.28);
+    color: #b9adff;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 1px;
+    margin-bottom: 22px;
+}
+
+.live-dot {
+    width: 7px;
+    height: 7px;
+    background: var(--green);
+    border-radius: 50%;
+    box-shadow: 0 0 12px var(--green);
+}
+
+.hero h1 {
+    max-width: 850px;
+    margin: auto;
+    font-size: clamp(46px, 7vw, 78px);
+    line-height: .96;
+    letter-spacing: -5px;
+    background: linear-gradient(
+        135deg,
+        #ffffff 15%,
+        #c2baff 55%,
+        #6feaff 95%
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}
+
+.hero p {
+    max-width: 670px;
+    margin: 24px auto 0;
+    color: var(--muted);
+    font-size: 16px;
+    line-height: 1.75;
+}
+
+/* MAIN APP */
+
+.app {
+    padding: 15px 0 80px;
+}
+
+/* TABS */
+
+.tabs {
+    max-width: 650px;
+    margin: 0 auto 25px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    padding: 5px;
+    border-radius: 17px;
+    background: rgba(255,255,255,.04);
+    border: 1px solid var(--border);
+}
+
+.tab {
+    border: none;
+    border-radius: 12px;
+    padding: 14px;
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    font-weight: 800;
+    transition: .25s ease;
+}
+
+.tab:hover {
+    color: white;
+}
+
+.tab.active {
+    color: white;
+    background: linear-gradient(135deg, var(--purple), #5940d7);
+    box-shadow: 0 10px 25px rgba(124,92,255,.22);
+}
+
+/* WORKSPACE */
+
+.workspace {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+
+.card {
+    padding: 24px;
+    border-radius: 23px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    backdrop-filter: blur(20px);
+    box-shadow: var(--shadow);
+    transition: .25s ease;
+}
+
+.card:hover {
+    background: var(--card-hover);
+}
+
+.card-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.card-title h2 {
+    font-size: 17px;
+}
+
+.card-title span {
+    color: var(--muted);
+    font-size: 11px;
+}
+
+/* DROP ZONE */
+
+.drop-zone {
+    min-height: 310px;
+    position: relative;
+    border-radius: 18px;
+    border: 1.5px dashed rgba(255,255,255,.14);
+    background:
+        radial-gradient(
+            circle at center,
+            rgba(124,92,255,.08),
+            transparent 60%
+        ),
+        rgba(0,0,0,.13);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    cursor: pointer;
+    overflow: hidden;
+    transition: .25s ease;
+}
+
+.drop-zone:hover,
+.drop-zone.dragover {
+    border-color: rgba(124,92,255,.8);
+    background:
+        radial-gradient(
+            circle at center,
+            rgba(124,92,255,.15),
+            transparent 60%
+        ),
+        rgba(0,0,0,.15);
+    transform: translateY(-2px);
+}
+
+.drop-zone.has-image {
+    cursor: default;
+    border-style: solid;
+}
+
+.drop-content {
+    padding: 30px;
+}
+
+.upload-icon {
+    width: 68px;
+    height: 68px;
+    margin: 0 auto 17px;
+    display: grid;
+    place-items: center;
+    border-radius: 20px;
+    background: rgba(124,92,255,.12);
+    border: 1px solid rgba(124,92,255,.2);
+    font-size: 28px;
+}
+
+.drop-content h3 {
+    font-size: 16px;
+    margin-bottom: 8px;
+}
+
+.drop-content p {
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.7;
+}
+
+.browse {
+    color: #aa9eff;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.file-input {
+    display: none;
+}
+
+/* PREVIEW */
+
+.preview {
+    position: absolute;
+    inset: 0;
+    display: none;
+    background: #05070d;
+}
+
+.preview img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.image-info {
+    position: absolute;
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    background: rgba(0,0,0,.68);
+    backdrop-filter: blur(10px);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    color: #e5e8f2;
+    font-size: 10px;
+}
+
+.remove-btn {
+    border: none;
+    border-radius: 8px;
+    padding: 6px 9px;
+    color: #ff8ba4;
+    background: rgba(255,82,119,.12);
+    cursor: pointer;
+}
+
+/* TEXTAREA */
+
+.field {
+    margin-top: 15px;
+}
+
+.field-label {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 9px;
+    color: #e1e5ef;
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.counter {
+    color: var(--muted);
+    font-weight: 500;
+}
+
+textarea {
+    width: 100%;
+    min-height: 175px;
+    resize: vertical;
+    padding: 15px;
+    border-radius: 14px;
+    border: 1px solid var(--border);
+    background: rgba(0,0,0,.18);
+    color: white;
+    outline: none;
+    font-family: inherit;
+    font-size: 13px;
+    line-height: 1.65;
+    transition: .2s;
+}
+
+textarea:focus {
+    border-color: rgba(124,92,255,.7);
+    box-shadow: 0 0 0 3px rgba(124,92,255,.08);
+}
+
+.capacity-info {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 9px;
+    color: var(--muted);
+    font-size: 10px;
+}
+
+.progress {
+    height: 5px;
+    margin-top: 8px;
+    border-radius: 999px;
+    overflow: hidden;
+    background: rgba(255,255,255,.07);
+}
+
+.progress-bar {
+    width: 0;
+    height: 100%;
+    background: linear-gradient(90deg, var(--purple), var(--cyan));
+    transition: width .2s;
+}
+
+/* BUTTONS */
+
+.actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 18px;
+}
+
+.btn {
+    min-height: 48px;
+    flex: 1;
+    border-radius: 13px;
+    border: none;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 900;
+    transition: .22s ease;
+}
+
+.btn-primary {
+    color: white;
+    background: linear-gradient(135deg, var(--purple), #5941dc);
+    box-shadow: 0 10px 25px rgba(124,92,255,.2);
+}
+
+.btn-primary:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 15px 32px rgba(124,92,255,.3);
+}
+
+.btn-secondary {
+    color: #dfe3ee;
+    background: rgba(255,255,255,.05);
+    border: 1px solid var(--border);
+}
+
+.btn-secondary:hover:not(:disabled) {
+    background: rgba(255,255,255,.09);
+}
+
+.btn:disabled {
+    opacity: .38;
+    cursor: not-allowed;
+}
+
+/* STATUS */
+
+.status {
+    min-height: 20px;
+    margin-top: 14px;
+    text-align: center;
+    font-size: 11px;
+    line-height: 1.5;
+}
+
+.status.success {
+    color: var(--green);
+}
+
+.status.error {
+    color: var(--red);
+}
+
+.status.info {
+    color: #6ee7ff;
+}
+
+/* RESULT */
+
+.result {
+    display: none;
+    padding: 15px;
+    border-radius: 15px;
+    background: rgba(37,230,154,.055);
+    border: 1px solid rgba(37,230,154,.16);
+}
+
+.result.show {
+    display: block;
+    animation: fadeUp .3s ease;
+}
+
+.result-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.result-header strong {
+    color: var(--green);
+    font-size: 11px;
+}
+
+.copy-btn {
+    border: none;
+    border-radius: 8px;
+    padding: 6px 10px;
+    color: white;
+    background: rgba(255,255,255,.08);
+    cursor: pointer;
+    font-size: 10px;
+}
+
+.extracted-text {
+    max-height: 280px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+    color: #dfe4ef;
+    font-size: 12px;
+    line-height: 1.7;
+}
+
+/* EMPTY RESULT */
+
+.empty-result {
+    min-height: 235px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    color: #657087;
+    font-size: 12px;
+    line-height: 1.7;
+}
+
+/* FEATURES */
+
+.features {
+    display: grid;
+    grid-template-columns: repeat(3,1fr);
+    gap: 14px;
+    margin-top: 22px;
+}
+
+.feature {
+    padding: 18px;
+    border-radius: 17px;
+    border: 1px solid var(--border);
+    background: rgba(255,255,255,.025);
+}
+
+.feature-icon {
+    width: 31px;
+    height: 31px;
+    display: grid;
+    place-items: center;
+    border-radius: 9px;
+    background: rgba(124,92,255,.12);
+    color: #b7adff;
+    margin-bottom: 11px;
+    font-size: 13px;
+}
+
+.feature h3 {
+    font-size: 12px;
+    margin-bottom: 6px;
+}
+
+.feature p {
+    color: var(--muted);
+    font-size: 10px;
+    line-height: 1.65;
+}
+
+/* FOOTER */
+
+footer {
+    padding: 35px 0 50px;
+    text-align: center;
+    color: #616b82;
+    font-size: 10px;
+}
+
+.hidden {
+    display: none !important;
+}
+
+/* ANIMATION */
+
+@keyframes fadeUp {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes pulse {
+    0%,100% {
+        opacity: .5;
+    }
+
+    50% {
+        opacity: 1;
+    }
+}
+
+/* RESPONSIVE */
+
+@media(max-width: 850px) {
+    .workspace {
+        grid-template-columns: 1fr;
+    }
+
+    .features {
+        grid-template-columns: 1fr;
+    }
+
+    .hero {
+        padding-top: 40px;
+    }
+
+    .hero h1 {
+        letter-spacing: -3px;
+    }
+}
+
+@media(max-width: 500px) {
+    .container {
+        width: calc(100% - 20px);
+    }
+
+    .security-badge {
+        display: none;
+    }
+
+    .card {
+        padding: 16px;
+        border-radius: 19px;
+    }
+
+    .actions {
+        flex-direction: column;
+    }
+
+    .drop-zone {
+        min-height: 270px;
+    }
+
+    .hero h1 {
+        font-size: 46px;
+    }
+}
+</style>
+</head>
+
+<body>
+
+<header>
+    <div class="container navbar">
+
+        <div class="logo">
+            <div class="logo-icon">◈</div>
+            <span>Cipher<strong>Hide</strong></span>
+        </div>
+
+        <div class="security-badge">
+            🔒 Client-Side Processing
+        </div>
+
+    </div>
+</header>
+
+
+<main>
+
+<section class="hero">
+
+    <div class="container">
+
+        <div class="eyebrow">
+            <span class="live-dot"></span>
+            PRIVATE IMAGE STEGANOGRAPHY
+        </div>
+
+        <h1>
+            Hide secrets<br>
+            in plain sight.
+        </h1>
+
+        <p>
+            CipherHide lets you hide secret text inside images using
+            pixel-level steganography. Your files stay inside your
+            browser and are never uploaded to a server.
+        </p>
+
+    </div>
+
+</section>
+
+
+<section class="app">
+
+<div class="container">
+
+    <!-- MODE TABS -->
+
+    <div class="tabs">
+
+        <button
+            class="tab active"
+            data-mode="encode">
+            🔐 Hide Message
+        </button>
+
+        <button
+            class="tab"
+            data-mode="decode">
+            🔎 Extract Message
+        </button>
+
+    </div>
+
+
+    <!-- ================= ENCODE ================= -->
+
+    <div id="encodePanel">
+
+        <div class="workspace">
+
+            <!-- IMAGE CARD -->
+
+            <div class="card">
+
+                <div class="card-title">
+                    <h2>1. Choose an image</h2>
+                    <span>PNG recommended</span>
+                </div>
+
+                <div
+                    class="drop-zone"
+                    id="encodeDropZone">
+
+                    <input
+                        class="file-input"
+                        id="encodeFile"
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp">
+
+                    <div
+                        class="drop-content"
+                        id="encodeDropContent">
+
+                        <div class="upload-icon">
+                            ↑
+                        </div>
+
+                        <h3>
+                            Drop your image here
+                        </h3>
+
+                        <p>
+                            or
+                            <span class="browse">
+                                browse files
+                            </span>
+                            <br>
+                            PNG, JPG or WebP
+                        </p>
+
+                    </div>
+
+
+                    <div
+                        class="preview"
+                        id="encodePreview">
+
+                        <img
+                            id="encodePreviewImg"
+                            alt="Selected image">
+
+                        <div class="image-info">
+
+                            <span id="encodeFileName">
+                                image.png
+                            </span>
+
+                            <button
+                                class="remove-btn"
+                                id="removeEncode">
+                                Remove
+                            </button>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- MESSAGE CARD -->
+
+            <div class="card">
+
+                <div class="card-title">
+
+                    <h2>
+                        2. Enter your secret
+                    </h2>
+
+                    <span>
+                        UTF-8 text
+                    </span>
+
+                </div>
+
+
+                <div class="field">
+
+                    <div class="field-label">
+
+                        <span>
+                            Secret message
+                        </span>
+
+                        <span
+                            class="counter"
+                            id="charCounter">
+                            0 chars
+                        </span>
+
+                    </div>
+
+
+                    <textarea
+                        id="secretMessage"
+                        placeholder="Type the message you want to hide..."></textarea>
+
+
+                    <div class="capacity-info">
+
+                        <span>
+                            Message capacity
+                        </span>
+
+                        <span id="capacityText">
+                            No image selected
+                        </span>
+
+                    </div>
+
+
+                    <div class="progress">
+
+                        <div
+                            class="progress-bar"
+                            id="capacityBar">
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <div class="actions">
+
+                    <button
+                        class="btn btn-primary"
+                        id="encodeButton"
+                        disabled>
+                        🔐 Encode & Download
+                    </button>
+
+                    <button
+                        class="btn btn-secondary"
+                        id="clearEncode">
+                        Clear
+                    </button>
+
+                </div>
+
+
+                <div
+                    class="status"
+                    id="encodeStatus">
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- ================= DECODE ================= -->
+
+    <div
+        id="decodePanel"
+        class="hidden">
+
+        <div class="workspace">
+
+
+            <!-- IMAGE CARD -->
+
+            <div class="card">
+
+                <div class="card-title">
+
+                    <h2>
+                        1. Select encoded image
+                    </h2>
+
+                    <span>
+                        PNG preferred
+                    </span>
+
+                </div>
+
+
+                <div
+                    class="drop-zone"
+                    id="decodeDropZone">
+
+                    <input
+                        class="file-input"
+                        id="decodeFile"
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp">
+
+
+                    <div
+                        class="drop-content"
+                        id="decodeDropContent">
+
+                        <div class="upload-icon">
+                            🔎
+                        </div>
+
+                        <h3>
+                            Drop encoded image here
+                        </h3>
+
+                        <p>
+                            or
+                            <span class="browse">
+                                browse files
+                            </span>
+                            <br>
+                            Select an image containing a hidden message
+                        </p>
+
+                    </div>
+
+
+                    <div
+                        class="preview"
+                        id="decodePreview">
+
+                        <img
+                            id="decodePreviewImg"
+                            alt="Encoded image">
+
+                        <div class="image-info">
+
+                            <span id="decodeFileName">
+                                encoded.png
+                            </span>
+
+                            <button
+                                class="remove-btn"
+                                id="removeDecode">
+                                Remove
+                            </button>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <div class="actions">
+
+                    <button
+                        class="btn btn-primary"
+                        id="decodeButton"
+                        disabled>
+                        🔎 Extract Message
+                    </button>
+
+                    <button
+                        class="btn btn-secondary"
+                        id="clearDecode">
+                        Clear
+                    </button>
+
+                </div>
+
+
+                <div
+                    class="status"
+                    id="decodeStatus">
+                </div>
+
+            </div>
+
+
+            <!-- RESULT CARD -->
+
+            <div class="card">
+
+                <div class="card-title">
+
+                    <h2>
+                        2. Hidden message
+                    </h2>
+
+                    <span>
+                        Decoded output
+                    </span>
+
+                </div>
+
+
+                <div
+                    class="result"
+                    id="decodeResult">
+
+                    <div class="result-header">
+
+                        <strong>
+                            ✓ MESSAGE FOUND
+                        </strong>
+
+                        <button
+                            class="copy-btn"
+                            id="copyButton">
+                            Copy
+                        </button>
+
+                    </div>
+
+
+                    <div
+                        class="extracted-text"
+                        id="extractedText">
+                    </div>
+
+                </div>
+
+
+                <div
+                    class="empty-result"
+                    id="emptyResult">
+
+                    Your extracted message<br>
+                    will appear here.
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- FEATURES -->
+
+    <div class="features">
+
+        <div class="feature">
+
+            <div class="feature-icon">
+                🔒
+            </div>
+
+            <h3>
+                Private by Design
+            </h3>
+
+            <p>
+                Images and messages are processed locally
+                in your browser. Nothing needs to be uploaded.
+            </p>
+
+        </div>
+
+
+        <div class="feature">
+
+            <div class="feature-icon">
+                ◈
+            </div>
+
+            <h3>
+                LSB Steganography
+            </h3>
+
+            <p>
+                Secret information is embedded into the
+                least significant bits of image pixels.
+            </p>
+
+        </div>
+
+
+        <div class="feature">
+
+            <div class="feature-icon">
+                ⚡
+            </div>
+
+            <h3>
+                Fast Processing
+            </h3>
+
+            <p>
+                Encoding and extraction happen directly
+                in your browser without a backend.
+            </p>
+
+        </div>
+
+    </div>
+
+</div>
+
+</section>
+
+</main>
+
+
+<footer>
+    CipherHide · Browser-based image steganography · Your files stay on your device
+</footer>
+
+
+<script>
+"use strict";
+
+/*
+===========================================================
+CIPHERHIDE STEGANOGRAPHY ENGINE
+===========================================================
+
+Format:
+
+4 bytes  → Magic identifier: "CHD1"
+4 bytes  → Message length
+N bytes  → UTF-8 message
+
+The payload is stored in the least significant bit
+of RGB channels.
+
+Alpha channels remain untouched.
+
+PNG output is used because JPEG compression can
+destroy hidden LSB data.
+===========================================================
+*/
+
+
+const MAGIC = new Uint8Array([
+    0x43, // C
+    0x48, // H
+    0x44, // D
+    0x31  // 1
+]);
+
+const HEADER_SIZE = 8;
+
+
+/* IMAGE STATE */
+
+let encodeImage = null;
+let decodeImage = null;
+
+
+/* CANVAS */
+
+const encodeCanvas =
+    document.createElement("canvas");
+
+const decodeCanvas =
+    document.createElement("canvas");
+
+const encodeCtx =
+    encodeCanvas.getContext(
+        "2d",
+        { willReadFrequently: true }
+    );
+
+const decodeCtx =
+    decodeCanvas.getContext(
+        "2d",
+        { willReadFrequently: true }
+    );
+
+
+/* DOM */
+
+const tabs =
+    document.querySelectorAll(".tab");
+
+const encodePanel =
+    document.getElementById("encodePanel");
+
+const decodePanel =
+    document.getElementById("decodePanel");
+
+
+const encodeDropZone =
+    document.getElementById("encodeDropZone");
+
+const decodeDropZone =
+    document.getElementById("decodeDropZone");
+
+
+const encodeFile =
+    document.getElementById("encodeFile");
+
+const decodeFile =
+    document.getElementById("decodeFile");
+
+
+const encodePreview =
+    document.getElementById("encodePreview");
+
+const decodePreview =
+    document.getElementById("decodePreview");
+
+
+const encodePreviewImg =
+    document.getElementById("encodePreviewImg");
+
+const decodePreviewImg =
+    document.getElementById("decodePreviewImg");
+
+
+const encodeFileName =
+    document.getElementById("encodeFileName");
+
+const decodeFileName =
+    document.getElementById("decodeFileName");
+
+
+const secretMessage =
+    document.getElementById("secretMessage");
+
+const charCounter =
+    document.getElementById("charCounter");
+
+
+const capacityText =
+    document.getElementById("capacityText");
+
+const capacityBar =
+    document.getElementById("capacityBar");
+
+
+const encodeButton =
+    document.getElementById("encodeButton");
+
+const decodeButton =
+    document.getElementById("decodeButton");
+
+
+const encodeStatus =
+    document.getElementById("encodeStatus");
+
+const decodeStatus =
+    document.getElementById("decodeStatus");
+
+
+const decodeResult =
+    document.getElementById("decodeResult");
+
+const emptyResult =
+    document.getElementById("emptyResult");
+
+const extractedText =
+    document.getElementById("extractedText");
+
+const copyButton =
+    document.getElementById("copyButton");
+
+
+/* =========================================================
+   TAB SWITCHING
+========================================================= */
+
+tabs.forEach(tab => {
+
+    tab.addEventListener("click", () => {
+
+        tabs.forEach(t =>
+            t.classList.remove("active")
+        );
+
+        tab.classList.add("active");
+
+        if (tab.dataset.mode === "encode") {
+
+            encodePanel.classList.remove("hidden");
+            decodePanel.classList.add("hidden");
+
+        } else {
+
+            encodePanel.classList.add("hidden");
+            decodePanel.classList.remove("hidden");
+
+        }
+
+    });
+
+});
+
+
+/* =========================================================
+   IMAGE VALIDATION
+========================================================= */
+
+function isValidImage(file) {
+
+    return file &&
+        [
+            "image/png",
+            "image/jpeg",
+            "image/webp"
+        ].includes(file.type);
+
+}
+
+
+/* =========================================================
+   LOAD IMAGE
+========================================================= */
+
+function loadImage(file) {
+
+    return new Promise((resolve, reject) => {
+
+        if (!isValidImage(file)) {
+
+            reject(
+                new Error(
+                    "Please select a PNG, JPG or WebP image."
+                )
+            );
+
+            return;
+        }
+
+
+        const url =
+            URL.createObjectURL(file);
+
+        const img =
+            new Image();
+
+
+        img.onload = () => {
+
+            URL.revokeObjectURL(url);
+
+            resolve(img);
+
+        };
+
+
+        img.onerror = () => {
+
+            URL.revokeObjectURL(url);
+
+            reject(
+                new Error(
+                    "The selected image could not be loaded."
+                )
+            );
+
+        };
+
+
+        img.src = url;
+
+    });
+
+}
+
+
+/* =========================================================
+   ENCODE FILE
+========================================================= */
+
+encodeFile.addEventListener(
+    "change",
+    event => {
+
+        const file =
+            event.target.files[0];
+
+        if (file) {
+            handleEncodeFile(file);
+        }
+
+    }
+);
+
+
+async function handleEncodeFile(file) {
+
+    try {
+
+        setStatus(
+            encodeStatus,
+            "Loading image...",
+            "info"
+        );
+
+
+        encodeImage =
+            await loadImage(file);
+
+
+        encodePreviewImg.src =
+            URL.createObjectURL(file);
+
+
+        encodeFileName.textContent =
+            `${file.name} · ${encodeImage.width} × ${encodeImage.height}`;
+
+
+        document
+            .getElementById("encodeDropContent")
+            .classList.add("hidden");
+
+
+        encodePreview.style.display =
+            "block";
+
+
+        encodeDropZone.classList.add(
+            "has-image"
+        );
+
+
+        calculateCapacity();
+
+
+        setStatus(
+            encodeStatus,
+            "Image loaded successfully.",
+            "success"
+        );
+
+
+        updateEncodeButton();
+
+    } catch (error) {
+
+        setStatus(
+            encodeStatus,
+            error.message,
+            "error"
+        );
+
+    }
+
+}
+
+
+/* =========================================================
+   DECODE FILE
+========================================================= */
+
+decodeFile.addEventListener(
+    "change",
+    event => {
+
+        const file =
+            event.target.files[0];
+
+        if (file) {
+            handleDecodeFile(file);
+        }
+
+    }
+);
+
+
+async function handleDecodeFile(file) {
+
+    try {
+
+        setStatus(
+            decodeStatus,
+            "Loading image...",
+            "info"
+        );
+
+
+        decodeImage =
+            await loadImage(file);
+
+
+        decodePreviewImg.src =
+            URL.createObjectURL(file);
+
+
+        decodeFileName.textContent =
+            `${file.name} · ${decodeImage.width} × ${decodeImage.height}`;
+
+
+        document
+            .getElementById("decodeDropContent")
+            .classList.add("hidden");
+
+
+        decodePreview.style.display =
+            "block";
+
+
+        decodeDropZone.classList.add(
+            "has-image"
+        );
+
+
+        decodeButton.disabled = false;
+
+
+        setStatus(
+            decodeStatus,
+            "Image loaded successfully.",
+            "success"
+        );
+
+    } catch (error) {
+
+        setStatus(
+            decodeStatus,
+            error.message,
+            "error"
+        );
+
+    }
+
+}
+
+
+/* =========================================================
+   DRAG AND DROP
+========================================================= */
+
+function setupDropZone(
+    zone,
+    handler
+) {
+
+    zone.addEventListener(
+        "click",
+        event => {
+
+            if (
+                event.target.closest(".remove-btn") ||
+                zone.classList.contains("has-image")
+            ) {
+                return;
+            }
+
+            zone
+                .querySelector(".file-input")
+                .click();
+
+        }
+    );
+
+
+    zone.addEventListener(
+        "dragover",
+        event => {
+
+            event.preventDefault();
+
+            zone.classList.add("dragover");
+
+        }
+    );
+
+
+    zone.addEventListener(
+        "dragleave",
+        () => {
+
+            zone.classList.remove(
+                "dragover"
+            );
+
+        }
+    );
+
+
+    zone.addEventListener(
+        "drop",
+        event => {
+
+            event.preventDefault();
+
+            zone.classList.remove(
+                "dragover"
+            );
+
+            const file =
+                event.dataTransfer.files[0];
+
+            if (file) {
+                handler(file);
+            }
+
+        }
+    );
+
+}
+
+
+setupDropZone(
+    encodeDropZone,
+    handleEncodeFile
+);
+
+
+setupDropZone(
+    decodeDropZone,
+    handleDecodeFile
+);
+
+
+/* =========================================================
+   REMOVE ENCODE IMAGE
+========================================================= */
+
+document
+    .getElementById("removeEncode")
+    .addEventListener(
+        "click",
+        event => {
+
+            event.stopPropagation();
+
+            resetEncode();
+
+        }
+    );
+
+
+function resetEncode() {
+
+    encodeImage = null;
+
+    encodeFile.value = "";
+
+    encodePreview.style.display =
+        "none";
+
+    document
+        .getElementById("encodeDropContent")
+        .classList.remove("hidden");
+
+    encodeDropZone.classList.remove(
+        "has-image"
+    );
+
+    capacityText.textContent =
+        "No image selected";
+
+    capacityBar.style.width =
+        "0%";
+
+    encodeStatus.textContent =
+        "";
+
+    updateEncodeButton();
+
+}
+
+
+/* =========================================================
+   REMOVE DECODE IMAGE
+========================================================= */
+
+document
+    .getElementById("removeDecode")
+    .addEventListener(
+        "click",
+        event => {
+
+            event.stopPropagation();
+
+            resetDecode();
+
+        }
+    );
+
+
+function resetDecode() {
+
+    decodeImage = null;
+
+    decodeFile.value = "";
+
+    decodePreview.style.display =
+        "none";
+
+    document
+        .getElementById("decodeDropContent")
+        .classList.remove("hidden");
+
+    decodeDropZone.classList.remove(
+        "has-image"
+    );
+
+    decodeButton.disabled =
+        true;
+
+    extractedText.textContent =
+        "";
+
+    decodeResult.classList.remove(
+        "show"
+    );
+
+    emptyResult.style.display =
+        "flex";
+
+    decodeStatus.textContent =
+        "";
+
+}
+
+
+/* =========================================================
+   TEXT COUNTER
+========================================================= */
+
+secretMessage.addEventListener(
+    "input",
+    () => {
+
+        charCounter.textContent =
+            `${secretMessage.value.length} chars`;
+
+        calculateCapacity();
+
+        updateEncodeButton();
+
+    }
+);
+
+
+/* =========================================================
+   CAPACITY
+========================================================= */
+
+function getCapacity(image) {
+
+    if (!image) {
+        return 0;
+    }
+
+    /*
+        Each pixel has 3 usable RGB channels.
+
+        Each channel stores one bit.
+
+        Therefore:
+
+        pixels × 3 bits
+
+        The first 8 bytes are reserved for
+        the CipherHide header.
+    */
+
+    const totalBits =
+        image.width *
+        image.height *
+        3;
+
+    const totalBytes =
+        Math.floor(totalBits / 8);
+
+    return Math.max(
+        0,
+        totalBytes - HEADER_SIZE
+    );
+
+}
+
+
+function calculateCapacity() {
+
+    if (!encodeImage) {
+
+        capacityText.textContent =
+            "No image selected";
+
+        capacityBar.style.width =
+            "0%";
+
+        return;
+    }
+
+
+    const capacity =
+        getCapacity(encodeImage);
+
+
+    const messageBytes =
+        new TextEncoder()
+            .encode(secretMessage.value)
+            .length;
+
+
+    const percentage =
+        capacity === 0
+            ? 0
+            : Math.min(
+                100,
+                (messageBytes / capacity) * 100
+            );
+
+
+    capacityText.textContent =
+        `${formatBytes(messageBytes)} / ${formatBytes(capacity)}`;
+
+
+    capacityBar.style.width =
+        `${percentage}%`;
+
+
+    if (messageBytes > capacity) {
+
+        capacityBar.style.background =
+            "linear-gradient(90deg,#ff5277,#ff8a65)";
+
+    } else {
+
+        capacityBar.style.background =
+            "linear-gradient(90deg,#7c5cff,#00d9ff)";
+
+    }
+
+}
+
+
+/* =========================================================
+   FORMAT BYTES
+========================================================= */
+
+function formatBytes(bytes) {
+
+    if (bytes < 1024) {
+        return `${bytes} B`;
+    }
+
+    if (bytes < 1024 * 1024) {
+        return `${(bytes / 1024).toFixed(1)} KB`;
+    }
+
+    return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+
+}
+
+
+/* =========================================================
+   BUTTON STATE
+========================================================= */
+
+function updateEncodeButton() {
+
+    const messageBytes =
+        new TextEncoder()
+            .encode(secretMessage.value)
+            .length;
+
+
+    const capacity =
+        getCapacity(encodeImage);
+
+
+    encodeButton.disabled =
+        !encodeImage ||
+        messageBytes === 0 ||
+        messageBytes > capacity;
+
+}
+
+
+/* =========================================================
+   ENCODE
+========================================================= */
+
+encodeButton.addEventListener(
+    "click",
+    () => {
+
+        if (!encodeImage) {
+
+            setStatus(
+                encodeStatus,
+                "Please select an image first.",
+                "error"
+            );
+
+            return;
+        }
+
+
+        const message =
+            secretMessage.value;
+
+
+        if (!message) {
+
+            setStatus(
+                encodeStatus,
+                "Please enter a message.",
+                "error"
+            );
+
+            return;
+        }
+
+
+        try {
+
+            setStatus(
+                encodeStatus,
+                "Encoding your secret message...",
+                "info"
+            );
+
+
+            /*
+                Draw original image onto canvas.
+            */
+
+            encodeCanvas.width =
+                encodeImage.width;
+
+            encodeCanvas.height =
+                encodeImage.height;
+
+
+            encodeCtx.clearRect(
+                0,
+                0,
+                encodeCanvas.width,
+                encodeCanvas.height
+            );
+
+
+            encodeCtx.drawImage(
+                encodeImage,
+                0,
+                0
+            );
+
+
+            const imageData =
+                encodeCtx.getImageData(
+                    0,
+                    0,
+                    encodeCanvas.width,
+                    encodeCanvas.height
+                );
+
+
+            const pixels =
+                imageData.data;
+
+
+            /*
+                Convert message to UTF-8.
+            */
+
+            const messageBytes =
+                new TextEncoder()
+                    .encode(message);
+
+
+            /*
+                Create payload.
+            */
+
+            const payload =
+                new Uint8Array(
+                    HEADER_SIZE +
+                    messageBytes.length
+                );
+
+
+            /*
+                Header.
+            */
+
+            payload.set(
+                MAGIC,
+                0
+            );
+
+
+            /*
+                Store message length
+                as 32-bit unsigned integer.
+            */
+
+            payload[4] =
+                (messageBytes.length >>> 24) & 255;
+
+            payload[5] =
+                (messageBytes.length >>> 16) & 255;
+
+            payload[6] =
+                (messageBytes.length >>> 8) & 255;
+
+            payload[7] =
+                messageBytes.length & 255;
+
+
+            /*
+                Message.
+            */
+
+            payload.set(
+                messageBytes,
+                HEADER_SIZE
+            );
+
+
+            const requiredBits =
+                payload.length * 8;
+
+
+            const availableBits =
+                Math.floor(
+                    (pixels.length / 4) * 3
+                );
+
+
+            if (
+                requiredBits >
+                availableBits
+            ) {
+
+                throw new Error(
+                    "The message is too large for this image."
+                );
+
+            }
+
+
+            /*
+                Embed each payload bit
+                into RGB LSBs.
+
+                Alpha is never modified.
+            */
+
+            let bitIndex = 0;
+
+
+            for (
+                let i = 0;
+                i < pixels.length;
+                i += 4
+            ) {
+
+                for (
+                    let channel = 0;
+                    channel < 3;
+                    channel++
+                ) {
+
+                    if (
+                        bitIndex >=
+                        requiredBits
+                    ) {
+                        break;
+                    }
+
+
+                    const byteIndex =
+                        Math.floor(
+                            bitIndex / 8
+                        );
+
+
+                    const bitPosition =
+                        7 -
+                        (bitIndex % 8);
+
+
+                    const bit =
+                        (
+                            payload[byteIndex] >>
+                            bitPosition
+                        ) & 1;
+
+
+                    pixels[
+                        i + channel
+                    ] =
+                        (
+                            pixels[
+                                i + channel
+                            ] & 0xFE
+                        ) | bit;
+
+
+                    bitIndex++;
+
+                }
+
+
+                if (
+                    bitIndex >=
+                    requiredBits
+                ) {
+                    break;
+                }
+
+            }
+
+
+            /*
+                Put modified pixels
+                back onto canvas.
+            */
+
+            encodeCtx.putImageData(
+                imageData,
+                0,
+                0
+            );
+
+
+            /*
+                Export as PNG.
+            */
+
+            encodeCanvas.toBlob(
+                blob => {
+
+                    if (!blob) {
+
+                        setStatus(
+                            encodeStatus,
+                            "Could not create the encoded image.",
+                            "error"
+                        );
+
+                        return;
+                    }
+
+
+                    const url =
+                        URL.createObjectURL(blob);
+
+
+                    const link =
+                        document.createElement("a");
+
+
+                    link.href =
+                        url;
+
+
+                    link.download =
+                        "cipherhide-secret.png";
+
+
+                    document.body.appendChild(
+                        link
+                    );
+
+
+                    link.click();
+
+
+                    link.remove();
+
+
+                    setTimeout(
+                        () => {
+                            URL.revokeObjectURL(url);
+                        },
+                        1000
+                    );
+
+
+                    setStatus(
+                        encodeStatus,
+                        "✓ Message successfully hidden. Download started.",
+                        "success"
+                    );
+
+                },
+                "image/png"
+            );
+
+        } catch (error) {
+
+            setStatus(
+                encodeStatus,
+                error.message ||
+                "An error occurred while encoding.",
+                "error"
+            );
+
+        }
+
+    }
+);
+
+
+/* =========================================================
+   READ BITS
+========================================================= */
+
+function readBits(
+    pixels,
+    bitCount,
+    startBit = 0
+) {
+
+    const byteCount =
+        Math.ceil(bitCount / 8);
+
+
+    const output =
+        new Uint8Array(byteCount);
+
+
+    let currentBit =
+        startBit;
+
+
+    for (
+        let i = 0;
+        i < bitCount;
+        i++
+    ) {
+
+        /*
+            Every pixel gives
+            3 usable bits.
+        */
+
+        const pixelIndex =
+            Math.floor(
+                currentBit / 3
+            );
+
+
+        const channel =
+            currentBit % 3;
+
+
+        const dataIndex =
+            pixelIndex * 4 +
+            channel;
+
+
+        const bit =
+            pixels[dataIndex] & 1;
+
+
+        const outputByte =
+            Math.floor(i / 8);
+
+
+        const outputBit =
+            7 -
+            (i % 8);
+
+
+        output[outputByte] |=
+            bit << outputBit;
+
+
+        currentBit++;
+
+    }
+
+
+    return output;
+
+}
+
+
+/* =========================================================
+   DECODE
+========================================================= */
+
+decodeButton.addEventListener(
+    "click",
+    () => {
+
+        if (!decodeImage) {
+
+            setStatus(
+                decodeStatus,
+                "Please select an encoded image.",
+                "error"
+            );
+
+            return;
+        }
+
+
+        try {
+
+            setStatus(
+                decodeStatus,
+                "Scanning image for hidden data...",
+                "info"
+            );
+
+
+            decodeCanvas.width =
+                decodeImage.width;
+
+            decodeCanvas.height =
+                decodeImage.height;
+
+
+            decodeCtx.clearRect(
+                0,
+                0,
+                decodeCanvas.width,
+                decodeCanvas.height
+            );
+
+
+            decodeCtx.drawImage(
+                decodeImage,
+                0,
+                0
+            );
+
+
+            const imageData =
+                decodeCtx.getImageData(
+                    0,
+                    0,
+                    decodeCanvas.width,
+                    decodeCanvas.height
+                );
+
+
+            const pixels =
+                imageData.data;
+
+
+            /*
+                Read header.
+
+                Header =
+                4 byte magic +
+                4 byte message length
+            */
+
+            const header =
+                readBits(
+                    pixels,
+                    HEADER_SIZE * 8
+                );
+
+
+            /*
+                Check magic.
+            */
+
+            for (
+                let i = 0;
+                i < MAGIC.length;
+                i++
+            ) {
+
+                if (
+                    header[i] !==
+                    MAGIC[i]
+                ) {
+
+                    throw new Error(
+                        "No CipherHide message was found in this image."
+                    );
+
+                }
+
+            }
+
+
+            /*
+                Decode message length.
+            */
+
+            const messageLength =
+                (
+                    (header[4] << 24) |
+                    (header[5] << 16) |
+                    (header[6] << 8) |
+                    header[7]
+                ) >>> 0;
+
+
+            const maxCapacity =
+                getCapacity(decodeImage);
+
+
+            if (
+                messageLength === 0 ||
+                messageLength > maxCapacity
+            ) {
+
+                throw new Error(
+                    "The embedded message data appears to be invalid."
+                );
+
+            }
+
+
+            /*
+                Read message.
+
+                First 64 bits are header.
+            */
+
+            const messageBytes =
+                readBits(
+                    pixels,
+                    messageLength * 8,
+                    64
+                );
+
+
+            /*
+                Convert UTF-8 bytes
+                back into text.
+            */
+
+            const message =
+                new TextDecoder(
+                    "utf-8",
+                    { fatal: false }
+                ).decode(
+                    messageBytes
+                );
+
+
+            /*
+                Display result.
+            */
+
+            extractedText.textContent =
+                message;
+
+
+            decodeResult.classList.add(
+                "show"
+            );
+
+
+            emptyResult.style.display =
+                "none";
+
+
+            setStatus(
+                decodeStatus,
+                "✓ Hidden message extracted successfully.",
+                "success"
+            );
+
+        } catch (error) {
+
+            decodeResult.classList.remove(
+                "show"
+            );
+
+
+            emptyResult.style.display =
+                "flex";
+
+
+            extractedText.textContent =
+                "";
+
+
+            setStatus(
+                decodeStatus,
+                error.message ||
+                "Could not extract a message.",
+                "error"
+            );
+
+        }
+
+    }
+);
+
+
+/* =========================================================
+   COPY MESSAGE
+========================================================= */
+
+copyButton.addEventListener(
+    "click",
+    async () => {
+
+        const text =
+            extractedText.textContent;
+
+
+        if (!text) {
+            return;
+        }
+
+
+        try {
+
+            await navigator.clipboard.writeText(
+                text
+            );
+
+
+            copyButton.textContent =
+                "✓ Copied";
+
+
+            setTimeout(
+                () => {
+                    copyButton.textContent =
+                        "Copy";
+                },
+                1500
+            );
+
+        } catch {
+
+            /*
+                Clipboard fallback.
+            */
+
+            const temp =
+                document.createElement(
+                    "textarea"
+                );
+
+
+            temp.value =
+                text;
+
+
+            document.body.appendChild(
+                temp
+            );
+
+
+            temp.select();
+
+
+            document.execCommand(
+                "copy"
+            );
+
+
+            temp.remove();
+
+
+            copyButton.textContent =
+                "✓ Copied";
+
+
+            setTimeout(
+                () => {
+                    copyButton.textContent =
+                        "Copy";
+                },
+                1500
+            );
+
+        }
+
+    }
+);
+
+
+/* =========================================================
+   CLEAR ENCODE
+========================================================= */
+
+document
+    .getElementById("clearEncode")
+    .addEventListener(
+        "click",
+        () => {
+
+            secretMessage.value =
+                "";
+
+            charCounter.textContent =
+                "0 chars";
+
+            resetEncode();
+
+        }
+    );
+
+
+/* =========================================================
+   CLEAR DECODE
+========================================================= */
+
+document
+    .getElementById("clearDecode")
+    .addEventListener(
+        "click",
+        () => {
+
+            resetDecode();
+
+        }
+    );
+
+
+/* =========================================================
+   STATUS
+========================================================= */
+
+function setStatus(
+    element,
+    message,
+    type
+) {
+
+    element.textContent =
+        message;
+
+    element.className =
+        `status ${type}`;
+
+}
+
+
+/* =========================================================
+   INITIALIZATION
+========================================================= */
+
+calculateCapacity();
+
+updateEncodeButton();
+
+</script>
+
+</body>
+</html>
